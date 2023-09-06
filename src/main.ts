@@ -11,7 +11,6 @@ import {
 import { setChangedFilesOutput } from './changedFilesOutput'
 import {
   DiffResult,
-  getSHAForNonPullRequestEvent,
   getSHAForPullRequestEvent,
   getSHAForPullRequestCommentEvent
 } from './commitSha'
