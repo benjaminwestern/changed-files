@@ -151,11 +151,7 @@ const getChangedFilesFromLocalGit = async ({
 
   if (!github.context.payload.pull_request?.base?.ref) {
     const eventName = github.context.eventName
-    core.info(eventName)
-    core.info(github.context.payload?.pull_request)
-    core.info(inputs.headBranch)
-    core.info(inputs.baseBranch)
-    if (eventName == 'issue_comment') {
+    if (eventName === 'issue_comment') {
       core.info(`Running on a new ${eventName || 'issue_comment'} event...`)
       diffResult = await getSHAForPullRequestCommentEvent(
         inputs,
