@@ -776,7 +776,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getSHAForPullRequestEvent = exports.getSHAForNonPullRequestEvent = void 0;
+exports.getSHAForPullRequestCommentEvent = exports.getSHAForPullRequestEvent = exports.getSHAForNonPullRequestEvent = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const github = __importStar(__nccwpck_require__(5438));
 const utils_1 = __nccwpck_require__(918);
@@ -1214,6 +1214,193 @@ const getSHAForPullRequestEvent = (inputs, env, workingDirectory, isShallow, has
     };
 });
 exports.getSHAForPullRequestEvent = getSHAForPullRequestEvent;
+const getSHAForPullRequestCommentEvent = (inputs, env, workingDirectory, isShallow, hasSubmodule, gitFetchExtraArgs) => __awaiter(void 0, void 0, void 0, function* () {
+    var _1, _2, _3, _4, _5, _6, _7;
+    const targetBranch = inputs.headBranch;
+    const currentBranch = inputs.baseBranch;
+    if (!targetBranch) {
+        throw new Error('Must provide a target branch for a comment PR compare event.');
+    }
+    if (!currentBranch) {
+        throw new Error('Must provide a current branch for a comment PR compare event.');
+    }
+    if (!inputs.skipInitialFetch) {
+        core.info('Repository is shallow, fetching more history...');
+        if (isShallow) {
+            let prFetchExitCode = yield (0, utils_1.gitFetch)({
+                cwd: workingDirectory,
+                args: [
+                    ...gitFetchExtraArgs,
+                    '-u',
+                    '--progress',
+                    'origin',
+                    `pull/${(_1 = github.context.payload.pull_request) === null || _1 === void 0 ? void 0 : _1.number}/head:${currentBranch}`
+                ]
+            });
+            if (prFetchExitCode !== 0) {
+                prFetchExitCode = yield (0, utils_1.gitFetch)({
+                    cwd: workingDirectory,
+                    args: [
+                        ...gitFetchExtraArgs,
+                        '-u',
+                        '--progress',
+                        `--deepen=${inputs.fetchDepth}`,
+                        'origin',
+                        `+refs/heads/${currentBranch}*:refs/remotes/origin/${currentBranch}*`
+                    ]
+                });
+            }
+            if (prFetchExitCode !== 0) {
+                throw new Error('Failed to fetch pull request branch. Please ensure "persist-credentials" is set to "true" when checking out the repository. See: https://github.com/actions/checkout#usage');
+            }
+            core.debug('Fetching target branch...');
+            yield (0, utils_1.gitFetch)({
+                cwd: workingDirectory,
+                args: [
+                    ...gitFetchExtraArgs,
+                    '-u',
+                    '--progress',
+                    `--deepen=${inputs.fetchDepth}`,
+                    'origin',
+                    `+refs/heads/${targetBranch}:refs/remotes/origin/${targetBranch}`
+                ]
+            });
+            if (hasSubmodule) {
+                yield (0, utils_1.gitFetchSubmodules)({
+                    cwd: workingDirectory,
+                    args: [
+                        ...gitFetchExtraArgs,
+                        '-u',
+                        '--progress',
+                        `--deepen=${inputs.fetchDepth}`
+                    ]
+                });
+            }
+        }
+        else {
+            if (hasSubmodule && inputs.fetchSubmoduleHistory) {
+                yield (0, utils_1.gitFetchSubmodules)({
+                    cwd: workingDirectory,
+                    args: [
+                        ...gitFetchExtraArgs,
+                        '-u',
+                        '--progress',
+                        `--deepen=${inputs.fetchDepth}`
+                    ]
+                });
+            }
+        }
+        core.info('Completed fetching more history.');
+    }
+    const currentSha = yield getCurrentSHA({ inputs, workingDirectory });
+    let previousSha = inputs.baseSha;
+    let diff = '...';
+    if (previousSha && currentSha && currentBranch && targetBranch) {
+        if (previousSha === currentSha) {
+            core.error(`Similar commit hashes detected: previous sha: ${previousSha} is equivalent to the current sha: ${currentSha}.`);
+            core.error(`Please verify that both commits are valid, and increase the fetch_depth to a number higher than ${inputs.fetchDepth}.`);
+            throw new Error('Similar commit hashes detected.');
+        }
+        yield (0, utils_1.verifyCommitSha)({ sha: previousSha, cwd: workingDirectory });
+        core.debug(`Previous SHA: ${previousSha}`);
+        return {
+            previousSha,
+            currentSha,
+            currentBranch,
+            targetBranch,
+            diff
+        };
+    }
+    if (!((_3 = (_2 = github.context.payload.pull_request) === null || _2 === void 0 ? void 0 : _2.base) === null || _3 === void 0 ? void 0 : _3.ref) ||
+        ((_5 = (_4 = github.context.payload.head) === null || _4 === void 0 ? void 0 : _4.repo) === null || _5 === void 0 ? void 0 : _5.fork) === 'true') {
+        diff = '..';
+    }
+    if (!previousSha) {
+        previousSha = yield (0, utils_1.getRemoteBranchHeadSha)({
+            cwd: workingDirectory,
+            branch: targetBranch
+        });
+        if (!previousSha) {
+            throw new Error(`Cannot find previous Sha for branch ${targetBranch}.`);
+        }
+        if (isShallow) {
+            if (!(yield (0, utils_1.canDiffCommits)({
+                cwd: workingDirectory,
+                sha1: previousSha,
+                sha2: currentSha,
+                diff
+            }))) {
+                core.info('Merge base is not in the local history, fetching remote target branch...');
+                for (let i = 1; i <= 10; i++) {
+                    yield (0, utils_1.gitFetch)({
+                        cwd: workingDirectory,
+                        args: [
+                            ...gitFetchExtraArgs,
+                            '-u',
+                            '--progress',
+                            `--deepen=${inputs.fetchDepth}`,
+                            'origin',
+                            `+refs/heads/${targetBranch}:refs/remotes/origin/${targetBranch}`
+                        ]
+                    });
+                    if (yield (0, utils_1.canDiffCommits)({
+                        cwd: workingDirectory,
+                        sha1: previousSha,
+                        sha2: currentSha,
+                        diff
+                    })) {
+                        break;
+                    }
+                    core.info('Merge base is not in the local history, fetching remote target branch again...');
+                    core.info(`Attempt ${i}/10`);
+                }
+            }
+        }
+        if (!previousSha || previousSha === currentSha) {
+            previousSha = (_7 = (_6 = github.context.payload.pull_request) === null || _6 === void 0 ? void 0 : _6.base) === null || _7 === void 0 ? void 0 : _7.sha;
+        }
+    }
+    if (!(yield (0, utils_1.canDiffCommits)({
+        cwd: workingDirectory,
+        sha1: previousSha,
+        sha2: currentSha,
+        diff
+    }))) {
+        diff = '..';
+    }
+    yield (0, utils_1.verifyCommitSha)({ sha: previousSha, cwd: workingDirectory });
+    core.debug(`Previous SHA: ${previousSha}`);
+    if (!(yield (0, utils_1.canDiffCommits)({
+        cwd: workingDirectory,
+        sha1: previousSha,
+        sha2: currentSha,
+        diff
+    }))) {
+        throw new Error(`Unable to determine a difference between ${previousSha}${diff}${currentSha}`);
+    }
+    if (previousSha === currentSha) {
+        core.error(`Similar commit hashes detected: previous sha: ${previousSha} is equivalent to the current sha: ${currentSha}.`);
+        // This occurs if a PR is created from a forked repository and the event is pull_request_target.
+        //  - name: Checkout to branch
+        //    uses: actions/checkout@v3
+        // Without setting the repository to use the same repository as the pull request will cause the previousSha
+        // to be the same as the currentSha since the currentSha cannot be found in the local history.
+        // The solution is to use:
+        //   - name: Checkout to branch
+        //     uses: actions/checkout@v3
+        //     with:
+        //       repository: ${{ github.event.pull_request.head.repo.full_name }}
+        throw new Error('Similar commit hashes detected.');
+    }
+    return {
+        previousSha,
+        currentSha,
+        currentBranch,
+        targetBranch,
+        diff
+    };
+});
+exports.getSHAForPullRequestCommentEvent = getSHAForPullRequestCommentEvent;
 
 
 /***/ }),
@@ -1354,6 +1541,8 @@ const getInputs = () => {
     });
     const sha = core.getInput('sha', { required: false });
     const baseSha = core.getInput('base_sha', { required: false });
+    const headBranch = core.getInput('head_branch', { required: false });
+    const baseBranch = core.getInput('base_branch', { required: false });
     const since = core.getInput('since', { required: false });
     const until = core.getInput('until', { required: false });
     const path = core.getInput('path', { required: false });
@@ -1433,6 +1622,8 @@ const getInputs = () => {
         // Not Supported via REST API
         sha,
         baseSha,
+        headBranch,
+        baseBranch,
         since,
         until,
         path,
@@ -1605,11 +1796,20 @@ const getChangedFilesFromLocalGit = ({ inputs, env, workingDirectory, filePatter
     }
     let diffResult;
     if (!((_c = (_b = github.context.payload.pull_request) === null || _b === void 0 ? void 0 : _b.base) === null || _c === void 0 ? void 0 : _c.ref)) {
-        core.info(`Running on a ${github.context.eventName || 'push'} event...`);
-        diffResult = yield (0, commitSha_1.getSHAForNonPullRequestEvent)(inputs, env, workingDirectory, isShallow, hasSubmodule, gitFetchExtraArgs, isTag);
+        const eventName = github.context.eventName;
+        if (eventName === 'issue_comment') {
+            core.info(`Running on a new ${eventName || 'issue_comment'} event...`);
+            diffResult = yield (0, commitSha_1.getSHAForPullRequestCommentEvent)(inputs, env, workingDirectory, isShallow, hasSubmodule, gitFetchExtraArgs);
+        }
+        else {
+            core.info(`Running on an even cooler ${eventName || 'push'} event...`);
+            diffResult = yield (0, commitSha_1.getSHAForPullRequestCommentEvent)(inputs, env, workingDirectory, isShallow, hasSubmodule, gitFetchExtraArgs);
+        }
     }
     else {
-        core.info(`Running on a ${github.context.eventName || 'pull_request'} (${github.context.payload.action}) event...`);
+        core.info(`Running on a pull_request event...`);
+        core.info(`Payload: ${JSON.stringify(github.context.payload)}`);
+        core.info(`Running on a sweet sweet ${github.context.eventName || 'pull_request'} (${github.context.payload.action}) event...`);
         diffResult = yield (0, commitSha_1.getSHAForPullRequestEvent)(inputs, env, workingDirectory, isShallow, hasSubmodule, gitFetchExtraArgs);
     }
     if (diffResult.initialCommit) {

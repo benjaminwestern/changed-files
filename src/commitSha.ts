@@ -1,8 +1,8 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
 
-import { Env } from './env'
-import { Inputs } from './inputs'
+import {Env} from './env'
+import {Inputs} from './inputs'
 import {
   canDiffCommits,
   getHeadSha,
@@ -60,12 +60,12 @@ const getCurrentSHA = async ({
       } else if (github.context.eventName === 'merge_group') {
         currentSha = github.context.payload.merge_group?.head_sha
       } else {
-        currentSha = await getHeadSha({ cwd: workingDirectory })
+        currentSha = await getHeadSha({cwd: workingDirectory})
       }
     }
   }
 
-  await verifyCommitSha({ sha: currentSha, cwd: workingDirectory })
+  await verifyCommitSha({sha: currentSha, cwd: workingDirectory})
   core.debug(`Current SHA: ${currentSha}`)
 
   return currentSha
@@ -160,7 +160,7 @@ export const getSHAForNonPullRequestEvent = async (
     }
   }
 
-  const currentSha = await getCurrentSHA({ inputs, workingDirectory })
+  const currentSha = await getCurrentSHA({inputs, workingDirectory})
   let previousSha = inputs.baseSha
   const diff = '..'
 
@@ -175,7 +175,7 @@ export const getSHAForNonPullRequestEvent = async (
       throw new Error('Similar commit hashes detected.')
     }
 
-    await verifyCommitSha({ sha: previousSha, cwd: workingDirectory })
+    await verifyCommitSha({sha: previousSha, cwd: workingDirectory})
     core.debug(`Previous SHA: ${previousSha}`)
 
     return {
@@ -209,7 +209,7 @@ export const getSHAForNonPullRequestEvent = async (
       }
     } else if (isTag) {
       core.debug('Getting previous SHA for tag...')
-      const { sha, tag } = await getPreviousGitTag({ cwd: workingDirectory })
+      const {sha, tag} = await getPreviousGitTag({cwd: workingDirectory})
       previousSha = sha
       targetBranch = tag
     } else {
@@ -262,7 +262,7 @@ export const getSHAForNonPullRequestEvent = async (
     }
   }
 
-  await verifyCommitSha({ sha: previousSha, cwd: workingDirectory })
+  await verifyCommitSha({sha: previousSha, cwd: workingDirectory})
   core.debug(`Previous SHA: ${previousSha}`)
 
   core.debug(`Target branch: ${targetBranch}`)
@@ -378,7 +378,7 @@ export const getSHAForPullRequestEvent = async (
     core.info('Completed fetching more history.')
   }
 
-  const currentSha = await getCurrentSHA({ inputs, workingDirectory })
+  const currentSha = await getCurrentSHA({inputs, workingDirectory})
   let previousSha = inputs.baseSha
   let diff = '...'
 
@@ -393,7 +393,7 @@ export const getSHAForPullRequestEvent = async (
       throw new Error('Similar commit hashes detected.')
     }
 
-    await verifyCommitSha({ sha: previousSha, cwd: workingDirectory })
+    await verifyCommitSha({sha: previousSha, cwd: workingDirectory})
     core.debug(`Previous SHA: ${previousSha}`)
 
     return {
@@ -419,8 +419,8 @@ export const getSHAForPullRequestEvent = async (
       if (
         !previousSha ||
         (previousSha &&
-          (await verifyCommitSha({ sha: previousSha, cwd: workingDirectory })) !==
-          0)
+          (await verifyCommitSha({sha: previousSha, cwd: workingDirectory})) !==
+            0)
       ) {
         if (
           github.context.payload.action &&
@@ -517,7 +517,7 @@ export const getSHAForPullRequestEvent = async (
     diff = '..'
   }
 
-  await verifyCommitSha({ sha: previousSha, cwd: workingDirectory })
+  await verifyCommitSha({sha: previousSha, cwd: workingDirectory})
   core.debug(`Previous SHA: ${previousSha}`)
 
   if (
@@ -582,10 +582,14 @@ export const getSHAForPullRequestCommentEvent = async (
   const targetBranch = inputs.headBranch
   const currentBranch = inputs.baseBranch
   if (!targetBranch) {
-    throw new Error('Must provide a target branch for a comment PR compare event.')
+    throw new Error(
+      'Must provide a target branch for a comment PR compare event.'
+    )
   }
   if (!currentBranch) {
-    throw new Error('Must provide a current branch for a comment PR compare event.')
+    throw new Error(
+      'Must provide a current branch for a comment PR compare event.'
+    )
   }
 
   if (!inputs.skipInitialFetch) {
@@ -622,7 +626,6 @@ export const getSHAForPullRequestCommentEvent = async (
         )
       }
 
-
       core.debug('Fetching target branch...')
       await gitFetch({
         cwd: workingDirectory,
@@ -646,7 +649,6 @@ export const getSHAForPullRequestCommentEvent = async (
             `--deepen=${inputs.fetchDepth}`
           ]
         })
-
       }
     } else {
       if (hasSubmodule && inputs.fetchSubmoduleHistory) {
@@ -664,7 +666,7 @@ export const getSHAForPullRequestCommentEvent = async (
     core.info('Completed fetching more history.')
   }
 
-  const currentSha = await getCurrentSHA({ inputs, workingDirectory })
+  const currentSha = await getCurrentSHA({inputs, workingDirectory})
   let previousSha = inputs.baseSha
   let diff = '...'
 
@@ -679,7 +681,7 @@ export const getSHAForPullRequestCommentEvent = async (
       throw new Error('Similar commit hashes detected.')
     }
 
-    await verifyCommitSha({ sha: previousSha, cwd: workingDirectory })
+    await verifyCommitSha({sha: previousSha, cwd: workingDirectory})
     core.debug(`Previous SHA: ${previousSha}`)
 
     return {
@@ -699,7 +701,6 @@ export const getSHAForPullRequestCommentEvent = async (
   }
 
   if (!previousSha) {
-
     previousSha = await getRemoteBranchHeadSha({
       cwd: workingDirectory,
       branch: targetBranch
@@ -770,7 +771,7 @@ export const getSHAForPullRequestCommentEvent = async (
     diff = '..'
   }
 
-  await verifyCommitSha({ sha: previousSha, cwd: workingDirectory })
+  await verifyCommitSha({sha: previousSha, cwd: workingDirectory})
   core.debug(`Previous SHA: ${previousSha}`)
 
   if (
