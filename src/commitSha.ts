@@ -579,8 +579,8 @@ export const getSHAForPullRequestCommentEvent = async (
   hasSubmodule: boolean,
   gitFetchExtraArgs: string[]
 ): Promise<DiffResult> => {
-  let targetBranch = inputs.headBranch
-  let currentBranch = inputs.baseBranch
+  const targetBranch = inputs.headBranch
+  const currentBranch = inputs.baseBranch
   if (!targetBranch) {
     throw new Error('Must provide a target branch for a comment PR compare event.')
   }
