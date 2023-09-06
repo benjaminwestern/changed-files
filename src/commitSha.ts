@@ -582,13 +582,10 @@ export const getSHAForPullRequestCommentEvent = async (
   let targetBranch = inputs.headBranch
   let currentBranch = inputs.baseBranch
   if (!targetBranch) {
-    targetBranch = github.context.payload.pull_request?.base?.ref
+    throw new Error('Must provide a target branch for a comment PR compare event.')
   }
   if (!currentBranch) {
-    currentBranch = github.context.payload.pull_request?.head?.ref
-  }
-  if (inputs.sinceLastRemoteCommit) {
-    targetBranch = currentBranch
+    throw new Error('Must provide a current branch for a comment PR compare event.')
   }
 
   if (!inputs.skipInitialFetch) {
@@ -625,31 +622,31 @@ export const getSHAForPullRequestCommentEvent = async (
         )
       }
 
-      if (!inputs.sinceLastRemoteCommit) {
-        core.debug('Fetching target branch...')
-        await gitFetch({
+
+      core.debug('Fetching target branch...')
+      await gitFetch({
+        cwd: workingDirectory,
+        args: [
+          ...gitFetchExtraArgs,
+          '-u',
+          '--progress',
+          `--deepen=${inputs.fetchDepth}`,
+          'origin',
+          `+refs/heads/${targetBranch}:refs/remotes/origin/${targetBranch}`
+        ]
+      })
+
+      if (hasSubmodule) {
+        await gitFetchSubmodules({
           cwd: workingDirectory,
           args: [
             ...gitFetchExtraArgs,
             '-u',
             '--progress',
-            `--deepen=${inputs.fetchDepth}`,
-            'origin',
-            `+refs/heads/${targetBranch}:refs/remotes/origin/${targetBranch}`
+            `--deepen=${inputs.fetchDepth}`
           ]
         })
 
-        if (hasSubmodule) {
-          await gitFetchSubmodules({
-            cwd: workingDirectory,
-            args: [
-              ...gitFetchExtraArgs,
-              '-u',
-              '--progress',
-              `--deepen=${inputs.fetchDepth}`
-            ]
-          })
-        }
       }
     } else {
       if (hasSubmodule && inputs.fetchSubmoduleHistory) {
@@ -702,90 +699,57 @@ export const getSHAForPullRequestCommentEvent = async (
   }
 
   if (!previousSha) {
-    if (inputs.sinceLastRemoteCommit) {
-      previousSha = github.context.payload.before
 
+    previousSha = await getRemoteBranchHeadSha({
+      cwd: workingDirectory,
+      branch: targetBranch
+    })
+
+    if (!previousSha) {
+      throw new Error(`Cannot find previous Sha for branch ${targetBranch}.`)
+    }
+
+    if (isShallow) {
       if (
-        !previousSha ||
-        (previousSha &&
-          (await verifyCommitSha({ sha: previousSha, cwd: workingDirectory })) !==
-          0)
+        !(await canDiffCommits({
+          cwd: workingDirectory,
+          sha1: previousSha,
+          sha2: currentSha,
+          diff
+        }))
       ) {
-        if (
-          github.context.payload.action &&
-          github.context.payload.action === 'synchronize'
-        ) {
-          core.warning(
-            'Unable to locate the remote branch head sha. Falling back to the previous commit in the local history.'
-          )
-        } else {
-          core.info(
-            `Unable to locate the remote branch head sha for ${github.context.eventName} (${github.context.payload.action}) events. Falling back to the previous commit in the local history.`
-          )
-        }
-        previousSha = await getParentSha({
-          cwd: workingDirectory
-        })
+        core.info(
+          'Merge base is not in the local history, fetching remote target branch...'
+        )
 
-        if (!previousSha) {
-          core.warning(
-            'Unable to locate the previous commit in the local history. Falling back to the pull request base sha.'
-          )
-          previousSha = github.context.payload.pull_request?.base?.sha
-        }
-      }
-    } else {
-      previousSha = await getRemoteBranchHeadSha({
-        cwd: workingDirectory,
-        branch: targetBranch
-      })
-
-      if (!previousSha) {
-        previousSha = github.context.payload.pull_request?.base?.sha
-      }
-
-      if (isShallow) {
-        if (
-          !(await canDiffCommits({
+        for (let i = 1; i <= 10; i++) {
+          await gitFetch({
             cwd: workingDirectory,
-            sha1: previousSha,
-            sha2: currentSha,
-            diff
-          }))
-        ) {
-          core.info(
-            'Merge base is not in the local history, fetching remote target branch...'
-          )
+            args: [
+              ...gitFetchExtraArgs,
+              '-u',
+              '--progress',
+              `--deepen=${inputs.fetchDepth}`,
+              'origin',
+              `+refs/heads/${targetBranch}:refs/remotes/origin/${targetBranch}`
+            ]
+          })
 
-          for (let i = 1; i <= 10; i++) {
-            await gitFetch({
+          if (
+            await canDiffCommits({
               cwd: workingDirectory,
-              args: [
-                ...gitFetchExtraArgs,
-                '-u',
-                '--progress',
-                `--deepen=${inputs.fetchDepth}`,
-                'origin',
-                `+refs/heads/${targetBranch}:refs/remotes/origin/${targetBranch}`
-              ]
+              sha1: previousSha,
+              sha2: currentSha,
+              diff
             })
-
-            if (
-              await canDiffCommits({
-                cwd: workingDirectory,
-                sha1: previousSha,
-                sha2: currentSha,
-                diff
-              })
-            ) {
-              break
-            }
-
-            core.info(
-              'Merge base is not in the local history, fetching remote target branch again...'
-            )
-            core.info(`Attempt ${i}/10`)
+          ) {
+            break
           }
+
+          core.info(
+            'Merge base is not in the local history, fetching remote target branch again...'
+          )
+          core.info(`Attempt ${i}/10`)
         }
       }
     }
@@ -836,18 +800,6 @@ export const getSHAForPullRequestCommentEvent = async (
     //     uses: actions/checkout@v3
     //     with:
     //       repository: ${{ github.event.pull_request.head.repo.full_name }}
-    if (github.context.eventName === 'pull_request_target') {
-      core.warning(
-        'If this pull request is from a forked repository, please set the checkout action `repository` input to the same repository as the pull request.'
-      )
-      core.warning(
-        'This can be done by setting actions/checkout `repository` to ${{ github.event.pull_request.head.repo.full_name }}'
-      )
-    } else {
-      core.error(
-        `Please verify that both commits are valid, and increase the fetch_depth to a number higher than ${inputs.fetchDepth}.`
-      )
-    }
     throw new Error('Similar commit hashes detected.')
   }
 
