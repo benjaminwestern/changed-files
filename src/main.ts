@@ -162,8 +162,8 @@ const getChangedFilesFromLocalGit = async ({
         gitFetchExtraArgs,
       )
     } else {
-      core.info(`Running on a ${eventName || 'push'} event...`)
-      diffResult = await getSHAForNonPullRequestEvent(
+      core.info(`Running on an even cooler ${eventName || 'push'} event...`)
+      diffResult = await getSHAForPullRequestCommentEvent(
         inputs,
         env,
         workingDirectory,
