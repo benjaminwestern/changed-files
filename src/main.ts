@@ -170,7 +170,6 @@ const getChangedFilesFromLocalGit = async ({
         isShallow,
         hasSubmodule,
         gitFetchExtraArgs,
-        isTag
       )
     }
   } else {
