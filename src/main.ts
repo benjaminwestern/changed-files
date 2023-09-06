@@ -175,7 +175,7 @@ const getChangedFilesFromLocalGit = async ({
     core.info(`Running on a pull_request event...`)
     core.info(`Payload: ${JSON.stringify(github.context.payload)}`)
     core.info(
-      `Running on a ${github.context.eventName || 'pull_request'} (${github.context.payload.action
+      `Running on a sweet sweet ${github.context.eventName || 'pull_request'} (${github.context.payload.action
       }) event...`
     )
     diffResult = await getSHAForPullRequestEvent(
