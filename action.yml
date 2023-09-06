@@ -1,6 +1,6 @@
-name: Changed Files
+name: Test Changed Files
 description: Get all Added, Copied, Modified, Deleted, Renamed, Type changed, Unmerged, and Unknown files.
-author: tj-actions
+author: benjaminwestern
 
 inputs:
   separator:
