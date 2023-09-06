@@ -81,6 +81,12 @@ inputs:
   base_sha:
     description: "Specify a different base commit SHA used for comparing changes"
     required: false
+  head_branch:
+    description: "Specify the head branch used for comparing changes"
+    required: false
+  base_branch:
+    description: "Specify the base branch SHA used for comparing changes"
+    required: false
   since:
     description: "Get changed files for commits whose timestamp is older than the given time."
     required: false
