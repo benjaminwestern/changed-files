@@ -8,14 +8,15 @@ import {
   getChangedFilesFromGithubAPI,
   getRenamedFiles
 } from './changedFiles'
-import {setChangedFilesOutput} from './changedFilesOutput'
+import { setChangedFilesOutput } from './changedFilesOutput'
 import {
   DiffResult,
   getSHAForNonPullRequestEvent,
-  getSHAForPullRequestEvent
+  getSHAForPullRequestEvent,
+  getSHAForPullRequestCommentEvent
 } from './commitSha'
-import {Env, getEnv} from './env'
-import {getInputs, Inputs} from './inputs'
+import { Env, getEnv } from './env'
+import { getInputs, Inputs } from './inputs'
 import {
   getFilePatterns,
   getFilteredChangedFiles,
@@ -130,8 +131,8 @@ const getChangedFilesFromLocalGit = async ({
     })
   }
 
-  const isShallow = await isRepoShallow({cwd: workingDirectory})
-  const hasSubmodule = await submoduleExists({cwd: workingDirectory})
+  const isShallow = await isRepoShallow({ cwd: workingDirectory })
+  const hasSubmodule = await submoduleExists({ cwd: workingDirectory })
   let gitFetchExtraArgs = ['--no-tags', '--prune', '--recurse-submodules']
   const isTag = env.GITHUB_REF?.startsWith('refs/tags/')
   const outputRenamedFilesAsDeletedAndAdded =
@@ -139,7 +140,7 @@ const getChangedFilesFromLocalGit = async ({
   let submodulePaths: string[] = []
 
   if (hasSubmodule) {
-    submodulePaths = await getSubmodulePath({cwd: workingDirectory})
+    submodulePaths = await getSubmodulePath({ cwd: workingDirectory })
   }
 
   if (isTag) {
@@ -149,20 +150,32 @@ const getChangedFilesFromLocalGit = async ({
   let diffResult: DiffResult
 
   if (!github.context.payload.pull_request?.base?.ref) {
-    core.info(`Running on a ${github.context.eventName || 'push'} event...`)
-    diffResult = await getSHAForNonPullRequestEvent(
-      inputs,
-      env,
-      workingDirectory,
-      isShallow,
-      hasSubmodule,
-      gitFetchExtraArgs,
-      isTag
-    )
+    const eventName = github.context.eventName
+    if (eventName === 'issue_comment') {
+      core.info(`Running on a ${eventName || 'issue_comment'} event...`)
+      diffResult = await getSHAForPullRequestCommentEvent(
+        inputs,
+        env,
+        workingDirectory,
+        isShallow,
+        hasSubmodule,
+        gitFetchExtraArgs,
+      )
+    } else {
+      core.info(`Running on a ${eventName || 'push'} event...`)
+      diffResult = await getSHAForNonPullRequestEvent(
+        inputs,
+        env,
+        workingDirectory,
+        isShallow,
+        hasSubmodule,
+        gitFetchExtraArgs,
+        isTag
+      )
+    }
   } else {
     core.info(
-      `Running on a ${github.context.eventName || 'pull_request'} (${
-        github.context.payload.action
+      `Running on a ${github.context.eventName || 'pull_request'} (${github.context.payload.action
       }) event...`
     )
     diffResult = await getSHAForPullRequestEvent(
@@ -200,7 +213,7 @@ const getChangedFilesFromLocalGit = async ({
   core.endGroup()
 
   if (inputs.recoverDeletedFiles) {
-    let recoverPatterns = getRecoverFilePatterns({inputs})
+    let recoverPatterns = getRecoverFilePatterns({ inputs })
 
     if (recoverPatterns.length > 0 && filePatterns.length > 0) {
       core.info('No recover patterns found; defaulting to file patterns')
@@ -292,7 +305,7 @@ export async function run(): Promise<void> {
   )
   core.debug(`Working directory: ${workingDirectory}`)
 
-  const hasGitDirectory = await hasLocalGitDirectory({workingDirectory})
+  const hasGitDirectory = await hasLocalGitDirectory({ workingDirectory })
   core.debug(`Has git directory: ${hasGitDirectory}`)
 
   const filePatterns = await getFilePatterns({

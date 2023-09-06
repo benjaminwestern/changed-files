@@ -50,15 +50,17 @@ export type Inputs = {
   skipInitialFetch: boolean
   failOnInitialDiffError: boolean
   failOnSubmoduleDiffError: boolean
+  headBranch: string
+  baseBranch: string
 }
 
 export const getInputs = (): Inputs => {
-  const files = core.getInput('files', {required: false})
+  const files = core.getInput('files', { required: false })
   const filesSeparator = core.getInput('files_separator', {
     required: false,
     trimWhitespace: false
   })
-  const filesIgnore = core.getInput('files_ignore', {required: false})
+  const filesIgnore = core.getInput('files_ignore', { required: false })
   const filesIgnoreSeparator = core.getInput('files_ignore_separator', {
     required: false,
     trimWhitespace: false
@@ -73,7 +75,7 @@ export const getInputs = (): Inputs => {
       trimWhitespace: false
     }
   )
-  const filesYaml = core.getInput('files_yaml', {required: false})
+  const filesYaml = core.getInput('files_yaml', { required: false })
   const filesYamlFromSourceFile = core.getInput('files_yaml_from_source_file', {
     required: false
   })
@@ -86,7 +88,7 @@ export const getInputs = (): Inputs => {
   )
   const filesIgnoreFromSourceFile = core.getInput(
     'files_ignore_from_source_file',
-    {required: false}
+    { required: false }
   )
   const filesIgnoreFromSourceFileSeparator = core.getInput(
     'files_ignore_from_source_file_separator',
@@ -95,10 +97,10 @@ export const getInputs = (): Inputs => {
       trimWhitespace: false
     }
   )
-  const filesIgnoreYaml = core.getInput('files_ignore_yaml', {required: false})
+  const filesIgnoreYaml = core.getInput('files_ignore_yaml', { required: false })
   const filesIgnoreYamlFromSourceFile = core.getInput(
     'files_ignore_yaml_from_source_file',
-    {required: false}
+    { required: false }
   )
   const filesIgnoreYamlFromSourceFileSeparator = core.getInput(
     'files_ignore_yaml_from_source_file_separator',
@@ -113,7 +115,7 @@ export const getInputs = (): Inputs => {
   })
   const includeAllOldNewRenamedFiles = core.getBooleanInput(
     'include_all_old_new_renamed_files',
-    {required: false}
+    { required: false }
   )
   const oldNewSeparator = core.getInput('old_new_separator', {
     required: true,
@@ -123,14 +125,16 @@ export const getInputs = (): Inputs => {
     required: true,
     trimWhitespace: false
   })
-  const sha = core.getInput('sha', {required: false})
-  const baseSha = core.getInput('base_sha', {required: false})
-  const since = core.getInput('since', {required: false})
-  const until = core.getInput('until', {required: false})
-  const path = core.getInput('path', {required: false})
-  const quotePath = core.getBooleanInput('quotepath', {required: false})
-  const diffRelative = core.getBooleanInput('diff_relative', {required: false})
-  const dirNames = core.getBooleanInput('dir_names', {required: false})
+  const sha = core.getInput('sha', { required: false })
+  const baseSha = core.getInput('base_sha', { required: false })
+  const headBranch = core.getInput('head_branch', { required: false })
+  const baseBranch = core.getInput('base_branch', { required: false })
+  const since = core.getInput('since', { required: false })
+  const until = core.getInput('until', { required: false })
+  const path = core.getInput('path', { required: false })
+  const quotePath = core.getBooleanInput('quotepath', { required: false })
+  const diffRelative = core.getBooleanInput('diff_relative', { required: false })
+  const dirNames = core.getBooleanInput('dir_names', { required: false })
   const dirNamesMaxDepth = core.getInput('dir_names_max_depth', {
     required: false
   })
@@ -150,29 +154,29 @@ export const getInputs = (): Inputs => {
       trimWhitespace: false
     }
   )
-  const json = core.getBooleanInput('json', {required: false})
-  const escapeJson = core.getBooleanInput('escape_json', {required: false})
-  const fetchDepth = core.getInput('fetch_depth', {required: false})
+  const json = core.getBooleanInput('json', { required: false })
+  const escapeJson = core.getBooleanInput('escape_json', { required: false })
+  const fetchDepth = core.getInput('fetch_depth', { required: false })
   const sinceLastRemoteCommit = core.getBooleanInput(
     'since_last_remote_commit',
-    {required: false}
+    { required: false }
   )
   const writeOutputFiles = core.getBooleanInput('write_output_files', {
     required: false
   })
-  const outputDir = core.getInput('output_dir', {required: false})
+  const outputDir = core.getInput('output_dir', { required: false })
   const outputRenamedFilesAsDeletedAndAdded = core.getBooleanInput(
     'output_renamed_files_as_deleted_and_added',
-    {required: false}
+    { required: false }
   )
   const recoverDeletedFiles = core.getBooleanInput('recover_deleted_files', {
     required: false
   })
   const recoverDeletedFilesToDestination = core.getInput(
     'recover_deleted_files_to_destination',
-    {required: false}
+    { required: false }
   )
-  const recoverFiles = core.getInput('recover_files', {required: false})
+  const recoverFiles = core.getInput('recover_files', { required: false })
   const recoverFilesSeparator = core.getInput('recover_files_separator', {
     required: false,
     trimWhitespace: false
@@ -187,8 +191,8 @@ export const getInputs = (): Inputs => {
       trimWhitespace: false
     }
   )
-  const token = core.getInput('token', {required: false})
-  const apiUrl = core.getInput('api_url', {required: false})
+  const token = core.getInput('token', { required: false })
+  const apiUrl = core.getInput('api_url', { required: false })
   const skipInitialFetch = core.getBooleanInput('skip_initial_fetch', {
     required: false
   })
@@ -232,6 +236,8 @@ export const getInputs = (): Inputs => {
     // Not Supported via REST API
     sha,
     baseSha,
+    headBranch,
+    baseBranch,
     since,
     until,
     path,
